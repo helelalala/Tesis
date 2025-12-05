@@ -93,3 +93,4 @@ Dimension5B <- puntajes_interjueces %>%
 FAC5B <- Dimension5B[, c(3:7)]
 FAC5Bmat<-t(as.matrix(FAC5B))
 kripp.alpha(FAC5Bmat, method = "ordinal")
+#Exportar tablas de resultados
