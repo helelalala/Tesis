@@ -6,6 +6,7 @@ install.packages("dplyr") # paquete de manejo y manipulación de datos
 install.packages("tidyr")  # paquete de manejo y manipulación de datos
 install.packages("psych") # paquete de acuerdo ICC
 install.packages("irr") # indices de acuerdo inter jueces avanzados
+install.packages("officer")
 #LLamado de paquetes
 library(readxl)
 library(dplyr)
@@ -14,6 +15,8 @@ library(tidyr)
 library(irr)
 library(psych)
 library(irrCAC)
+library(flextable)
+library(officer)
 #Bases de datos depurada
 Jueces_Bruto <- read_excel("Base_depurada.xlsx", 
                             sheet = "Jueces", na = "999")
@@ -44,66 +47,145 @@ puntajes_interjueces <- puntajes_long %>%
 puntajes_interjueces <- puntajes_interjueces %>%
   arrange(ID, ITEM)
 write_xlsx(puntajes_interjueces, "Puntajes_Interjueces.xlsx") # esta es la base de analisis
-#Analisis
+#Analisis de datos
+# Generación y denominación de las dimensiones
 #IDimensión1,tem1-5,datos binarios; IDEACIÓN SUICIDA (items1-5)
 Dimension1<- puntajes_interjueces %>%
   filter(ITEM %in% c("CSSRS1", "CSSRS2", "CSSRS3", "CSSRS4", "CSSRS5")) %>%
   arrange(ITEM, ID)
-FAC1<-Dimension1[,c(3:7)]
-agree(FAC1, tolerance=0)
-pa.coeff.raw(FAC1)
-kappam.fleiss(FAC1, exact = FALSE, detail = TRUE)
-gwet.ac1.raw(FAC1)
-krippen.alpha.raw(FAC1)
-FAC1_mat <- t(as.matrix(FAC1))
-kripp.alpha(FAC1_mat, method = "nominal")
-#IDimensión2,item6-11,datos ordinales; Intesidad suicida (items6-11)
+FAC1<-Dimension1[,c(3:7)] #Dimensión ideacion suicida
 Dimension2 <- puntajes_interjueces %>%
   filter(ITEM %in% c("CSSRS6", "CSSRS7", "CSSRS8", "CSSRS9", "CSSRS10", "CSSRS11")) %>%
   arrange(ITEM, ID)
-FAC2 <- Dimension2[, c(3:7)]  # Solo columnas de jueces
-agree(FAC2)
-pa.coeff.raw(FAC2,weights = "ordinal")
-kendall(FAC2, correct = FALSE)
-gwet.ac1.raw(FAC2,weights = "ordinal")
-ICC(FAC2)
-krippen.alpha.raw(FAC2,weights = "ordinal")
-FAC2_mat <- t(as.matrix(FAC2))
-kripp.alpha(FAC2_mat, method = "ordinal")
-#IDimensión3,item12-19,datos binarios; comportamiento suicida (items12-19)
+FAC2 <- Dimension2[, c(3:7)] #Dimensión intesidad suicida
 Dimension3 <- puntajes_interjueces %>%
   filter(ITEM %in% c("CSSRS12", "CSSRS14", "CSSRS15", "CSSRS17")) %>%
   arrange(ITEM, ID)
-FAC3 <- Dimension3[, c(3:7)]
-agree(FAC3, tolerance = 0)
-pa.coeff.raw(FAC3)  # nominal por defecto en binarios
-kappam.fleiss(FAC3, exact = FALSE, detail = TRUE)
-gwet.ac1.raw(FAC3)
-krippen.alpha.raw(FAC3)
-FAC3_mat <- t(as.matrix(FAC3))
-kripp.alpha(FAC3_mat, method = "nominal")
-# dimensión 4 CSSRS13, 16, 18. Conteo de intentos
+FAC3 <- Dimension3[, c(3:7)] #Dimensión Comportamiento Suicida
 Dimension4 <- puntajes_interjueces %>%
   filter(ITEM %in% c("CSSRS13", "CSSRS16", "CSSRS18")) %>%
   arrange(ITEM, ID)
-FAC4 <- Dimension4[, c(3:7)]
-agree(FAC4)
-pa.coeff.raw(FAC4,weights = "quadratic")
-robinson(FAC4)
-ICC(FAC4)
-FAC4_mat <- t(as.matrix(FAC4))
-kripp.alpha(FAC4_mat, method=("interval"))
-# dimensión 5 Item20,21 y 22 sesiones A Y B INTENTO
+FAC4 <- Dimension4[, c(3:7)] #Dimensión Numero de intentos Suicida
 Dimension5A <- puntajes_interjueces %>%
   filter(ITEM %in% c("CSSRS20A", "CSSRS21A", "CSSRS22A")) %>%
   arrange(ID, ITEM)
-FAC5A <- Dimension5A[, c(3:7)]
-FAC5Amat<-t(as.matrix(FAC5A))
-kripp.alpha(FAC5Amat, method = "ordinal")
+FAC5A <- Dimension5A[, c(3:7)] # Dimensión Letalidad
 Dimension5B <- puntajes_interjueces %>%
   filter(ITEM %in% c("CSSRS20B", "CSSRS21B", "CSSRS22B")) %>%
   arrange(ID, ITEM)
-FAC5B <- Dimension5B[, c(3:7)]
-FAC5Bmat<-t(as.matrix(FAC5B))
-kripp.alpha(FAC5Bmat, method = "ordinal")
-#Exportar tablas de resultados
+FAC5B <- Dimension5B[, c(3:7)]# Dimensión Letalidad potencial
+#1.Resultados Dimensión Ideación Suicida
+#items 5= "CSSRS1"/"CSSRS2"/"CSSRS3"/"CSSRS4"/"CSSRS5"
+#Tipo Binario
+agree(FAC1, tolerance=0) # Acuerdo Estricto 
+pa.coeff.raw(FAC1) # Acuerdo Ponderado
+kappam.fleiss(FAC1, exact = FALSE, detail = TRUE) #Kappa de Fleiss
+gwet.ac1.raw(FAC1) #AC1/AC2
+krippen.alpha.raw(FAC1) #Alpha con Coinf
+#2.Resultados Dimensión Intensidad Suicidad
+#items 6= "CSSRS6"/"CSSRS7"/"CSSRS8"/"CSSRS9"/"CSSRS10"/"CSSRS11"
+#Tipo Ordinal
+agree(FAC2) # Acuerdo Estricto
+pa.coeff.raw(FAC2,weights = "ordinal") # Acuerdo Ponderado
+kendall(FAC2, correct = FALSE) # Kendall
+gwet.ac1.raw(FAC2,weights = "ordinal") #AC1/AC2
+krippen.alpha.raw(FAC2,weights = "ordinal") # Alpha con Coinf
+ICC(FAC2) #Modelo 2 
+#3.Resultados Dimensión Comportamiento Suicida
+#items 4 = "CSSRS12"/"CSSRS14"/"CSSRS15"/"CSSRS17"
+#Tipo Binario
+agree(FAC3, tolerance = 0) # Acuerdo Estricto 
+pa.coeff.raw(FAC3) # Acuerdo Ponderado
+kappam.fleiss(FAC3, exact = FALSE, detail = TRUE) #Kappa de Fleiss
+gwet.ac1.raw(FAC3) #AC1/AC2
+krippen.alpha.raw(FAC3) #Alpha con Coinf
+#4.Resultados #Dimensión Numero de intentos Suicida
+#items 3 = "CSSRS13"/"CSSRS16"/"CSSRS18"
+#Tipo Conteo
+agree(FAC4) # Acuerdo Estricto 
+pa.coeff.raw(FAC4,weights = "quadratic") # Acuerdo Ponderado
+robinson(FAC4) #Robinson
+gwet.ac1.raw(FAC4,weights = "quadratic" ) #AC1/AC2
+krippen.alpha.raw(FAC4, weights = "quadratic") # Alpha con Coinf
+ICC(FAC4) #Modelo 2 
+#5.A Dimensión Letalidad
+#items 3  = "CSSRS20A"/"CSSRS21A"/"CSSRS22A"
+#Ordinal
+agree(FAC5A) # Acuerdo Estricto
+pa.coeff.raw(FAC5A,weights = "ordinal") # Acuerdo Ponderado
+kendall(FAC5A, correct = FALSE)  # Kendall
+gwet.ac1.raw(FAC5A,weights = "ordinal") #AC1/AC2
+krippen.alpha.raw(FAC5A,weights = "ordinal") # Alpha con Coinf
+ICC(FAC5A) #Modelo 2
+#5.B # Letalidad potencial
+#items 3  = "CSSRS20B"/"CSSRS21B"/"CSSRS22B"
+#Ordinal
+agree(FAC5B) # Acuerdo Estricto
+pa.coeff.raw(FAC5B,weights = "ordinal") # Acuerdo Ponderado
+kendall(FAC5B, correct = FALSE)  # Kendall
+gwet.ac1.raw(FAC5B,weights = "ordinal") #AC1/AC2
+krippen.alpha.raw(FAC5B,weights = "ordinal") # Alpha con Coinf
+ICC(FAC5B) #Modelo 2
+#Exportar Resultados
+tabla_resultados <- tribble(
+  ~Dimension, ~Items, ~Tipo, ~Pct_Acuerdo, ~PA_IC, ~Kendall_Kappa_Robinson, ~AC12_IC, ~Alpha_IC, ~ICC,
+  
+  "1 Ideación Suicida", 5, "Binario",
+  "90%", "0.953 (0.932–0.973)", "K = 0.888",
+  "AC1 = 0.918 (0.880–0.956)", "0.888 (0.838–0.938)", "—",
+  
+  "2 Intensidad Suicida", 6, "Ordinal",
+  "62.3%", "0.973 (0.965–0.981)", "W = 0.819",
+  "AC2 = 0.905 (0.875–0.935)", "0.829 (0.777–0.880)",
+  "ICC2 = 0.83 ICC2k = 0.96",
+  
+  "3 Comportamiento Suicida", 4, "Binario",
+  "82.9%", "0.920 (0.891–0.949)", "K = 0.839",
+  "AC1 = 0.840 (0.781–0.898)", "0.840 (0.781–0.898)", "—",
+  
+  "4 Numero de intentos Suicida", 3, "Conteo",
+  "70.2%", "0.995 (0.985–1.000)", "A=0.428",
+  "AC2 = 0.989 (0.969,1)  ", "0.283 (0.276–0.290)", "ICC2 = 0.28 ICC2k = 0.67",
+  
+  "5A  Letalidad", 3, "Ordinal",
+  "7.41%", "0.879 (0.714–1.000)", "W = 0.504",
+  "AC2 = NaN (NaN,NaN)", "0.395 (0.282–0.507)",
+  "ICC2 = 0.47 ICC2k = 0.82",
+  
+  "5B Letalidad potencial", 3, "Ordinal",
+  "—", "0.737 (0.480–0.993)", "—",
+  "AC2 = NaN (NaN,NaN)", "0.060 (-0.24–0.36)", "ICC2 = 0.19 ICC2k = 0.54",
+)
+
+ft <- flextable(tabla_resultados) |>
+  autofit() |>
+  theme_booktabs() |>
+  align(align = "center", part = "all") |>
+  bold(part = "header") |>
+  set_header_labels(
+    Dimension = "Dimensión",
+    Items = "Ítems",
+    Tipo = "Tipo",
+    Pct_Acuerdo = "% Acuerdo",
+    PA_IC = "PA (IC 95%)",
+    Kendall_Kappa = "Kendall/Kappa",
+    AC2_IC = "AC2 (IC 95%)",
+    Alpha_IC = "Alpha (IC 95%)",
+    ICC = "ICC"
+  )
+ft
+# Ajustar tabla al ancho de la página
+ft <- autofit(ft)
+ft <- width(ft, width = 0.9)  # puedes subir a 2.0 si queda aún angosta
+doc <- read_docx()
+landscape_section <- prop_section(
+  page_size = page_size(orient = "landscape")
+)
+doc <- body_set_default_section(doc, landscape_section)
+doc <- body_add_flextable(doc, ft)
+print(doc, target = "Tabla_Acuerdo_CSSRS.docx")
+
+
+
+
+
