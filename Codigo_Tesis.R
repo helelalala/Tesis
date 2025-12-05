@@ -1,7 +1,11 @@
 #Instalación de paquetes
-install.packages("readxl")
-install.packages("writexl")  
-install.packages("irrCAC")
+install.packages("readxl") # lectura de excel
+install.packages("writexl") # exportar resultados a excel  
+install.packages("irrCAC") # indices de acuerdo inter jueces balanceados
+install.packages("dplyr") # paquete de manejo y manipulación de datos
+install.packages("tidyr")  # paquete de manejo y manipulación de datos
+install.packages("psych") # paquete de acuerdo ICC
+install.packages("irr") # indices de acuerdo inter jueces avanzados
 #LLamado de paquetes
 library(readxl)
 library(dplyr)
@@ -10,17 +14,22 @@ library(tidyr)
 library(irr)
 library(psych)
 library(irrCAC)
-#bases de datos
+#Bases de datos depurada
 Jueces_Bruto <- read_excel("Base_depurada.xlsx", 
                             sheet = "Jueces", na = "999")
 Cal_Inicial_Bruto<- read_excel("Base_depurada.xlsx", 
                             sheet = "Diana", na = "999")
+# Generación de la base de datos consolidada
 IDs_validos <- unique(Jueces_Bruto$ID)
 Cal_Juez1_filtrado <- Cal_Inicial_Bruto %>%
   filter(ID %in% IDs_validos)
+#Datos completos en formato ancho cada fila es una entrevista evaluada por un juez
+#Es decir existe 5 veces cada Identificador (190*37) y estan todos los items a lo largo
+# Que serian 22 items de calificación y las descripciones
 Puntajes_COM<- bind_rows(Cal_Juez1_filtrado, Jueces_Bruto) %>%
   arrange(ID, Juez)
-write_xlsx(Puntajes_COM, "Puntajes_COM.xlsx")
+write_xlsx(Puntajes_COM, "Puntajes_COM.xlsx") # esta es la base final
+# Ahora se consolidad la base en formato largo, donde solo quedan 7 Columnas, ID, item y los 5 jueces
 puntajes_wide <- Puntajes_COM %>%
   select(ID, Juez, CSSRS1:CSSRS22B)
 puntajes_long <- puntajes_wide %>%
@@ -31,9 +40,10 @@ puntajes_interjueces <- puntajes_long %>%
   pivot_wider(names_from = Juez,
               values_from = PUNTAJE,
               names_prefix = "JUEZ")
+#Base en formato de analisis interjueces
 puntajes_interjueces <- puntajes_interjueces %>%
   arrange(ID, ITEM)
-write_xlsx(puntajes_interjueces, "Puntajes_Interjueces.xlsx")
+write_xlsx(puntajes_interjueces, "Puntajes_Interjueces.xlsx") # esta es la base de analisis
 #Analisis
 #IDimensión1,tem1-5,datos binarios; IDEACIÓN SUICIDA (items1-5)
 Dimension1<- puntajes_interjueces %>%
@@ -44,6 +54,7 @@ agree(FAC1, tolerance=0)
 pa.coeff.raw(FAC1)
 kappam.fleiss(FAC1, exact = FALSE, detail = TRUE)
 gwet.ac1.raw(FAC1)
+krippen.alpha.raw(FAC1)
 FAC1_mat <- t(as.matrix(FAC1))
 kripp.alpha(FAC1_mat, method = "nominal")
 #IDimensión2,item6-11,datos ordinales; Intesidad suicida (items6-11)
@@ -56,6 +67,7 @@ pa.coeff.raw(FAC2,weights = "ordinal")
 kendall(FAC2, correct = FALSE)
 gwet.ac1.raw(FAC2,weights = "ordinal")
 ICC(FAC2)
+krippen.alpha.raw(FAC2,weights = "ordinal")
 FAC2_mat <- t(as.matrix(FAC2))
 kripp.alpha(FAC2_mat, method = "ordinal")
 #IDimensión3,item12-19,datos binarios; comportamiento suicida (items12-19)
@@ -67,6 +79,7 @@ agree(FAC3, tolerance = 0)
 pa.coeff.raw(FAC3)  # nominal por defecto en binarios
 kappam.fleiss(FAC3, exact = FALSE, detail = TRUE)
 gwet.ac1.raw(FAC3)
+krippen.alpha.raw(FAC3)
 FAC3_mat <- t(as.matrix(FAC3))
 kripp.alpha(FAC3_mat, method = "nominal")
 # dimensión 4 CSSRS13, 16, 18. Conteo de intentos
