@@ -7,6 +7,7 @@ install.packages("tidyr")  # paquete de manejo y manipulación de datos
 install.packages("psych") # paquete de acuerdo ICC
 install.packages("irr") # indices de acuerdo inter jueces avanzados
 install.packages("officer")
+install.packages("summarytools")
 #LLamado de paquetes
 library(readxl)
 library(dplyr)
@@ -17,6 +18,7 @@ library(psych)
 library(irrCAC)
 library(flextable)
 library(officer)
+library(summarytools)
 #Bases de datos depurada
 Jueces_Bruto <- read_excel("Base_depurada.xlsx", 
                             sheet = "Jueces", na = "999")
@@ -184,8 +186,91 @@ landscape_section <- prop_section(
 doc <- body_set_default_section(doc, landscape_section)
 doc <- body_add_flextable(doc, ft)
 print(doc, target = "Tabla_Acuerdo_CSSRS.docx")
+# Analisis sociodemograficos
+DATOS_BASICOS <- read_excel("DATOS BASICOS.xlsx",sheet = "CARACTERIZACIÓN")
+dfSummary(DATOS_BASICOS)
+# 1. Función para crear subtablas con frecuencia y %
+get_tabla_porcentajes <- function(tabla, diccionario=NULL){
+  df <- data.frame(
+    Categoria = names(tabla),
+    Porcentaje = round(100*as.numeric(tabla)/sum(tabla),1),
+    stringsAsFactors = FALSE
+  )
+  if(!is.null(diccionario)) df$Categoria <- diccionario[as.numeric(df$Categoria)]
+  df
+}
 
+# 2. Diccionarios
+dic_sexo <- c("Masculino","Femenino")
+dic_orientacion <- c("Heterosexual","Homosexual","Bisexual","Asexual","Otro")
+dic_estcivil <- c("Soltero","Casado","Unión libre","Divorciado/separado","Viudo")
+dic_nivel <- c("Básica primaria o menor","Bachiller","Técnico o Tecnólogo","Profesional","Postgrado")
+dic_convivencia <- c("Solo","Solo con la pareja","Familiares","Solo con amigo(s)","Otros (compañeros no amigos)")
 
+# 3. Resumen
+resumen <- DATOS_BASICOS %>%
+  summarise(
+    n_total = n(),
+    sexo_tabla = list(table(sexo)),
+    orientacion_tabla = list(table(orientacion)),
+    nivel_educativo_mediana = median(nivel_educativo, na.rm = TRUE),
+    nivel_educativo_tabla = list(table(nivel_educativo)),
+    estcivil_tabla = list(table(estcivil)),
+    edad_media = mean(edad, na.rm = TRUE),
+    edad_sd = sd(edad, na.rm = TRUE),
+    convivencia_tabla = list(table(convivencia))
+  )
 
+# 4. Moda y mediana
+get_moda_str <- function(tabla, diccionario = NULL){
+  moda <- names(tabla)[which.max(tabla)]
+  if(!is.null(diccionario)) moda <- diccionario[as.numeric(moda)]
+  porcentaje <- round(100*max(tabla)/sum(tabla),1)
+  paste0(moda, " (", porcentaje, "%)")
+}
+sexo_str <- get_moda_str(resumen$sexo_tabla[[1]], dic_sexo)
+orientacion_str <- get_moda_str(resumen$orientacion_tabla[[1]], dic_orientacion)
+estcivil_str <- get_moda_str(resumen$estcivil_tabla[[1]], dic_estcivil)
+convivencia_str <- get_moda_str(resumen$convivencia_tabla[[1]], dic_convivencia)
+mediana_nivel <- resumen$nivel_educativo_mediana
+nivel_edu_str <- paste0(dic_nivel[mediana_nivel], " (", 
+                        round(100*resumen$nivel_educativo_tabla[[1]][as.character(mediana_nivel)]/sum(resumen$nivel_educativo_tabla[[1]]),1), "%)")
+edad_str <- paste0(round(resumen$edad_media,1), " ± ", round(resumen$edad_sd,1))
 
+# 5. Subtablas de % para Nivel educativo, Estado civil y Convivencia
+nivel_tab <- get_tabla_porcentajes(resumen$nivel_educativo_tabla[[1]], dic_nivel)
+estcivil_tab <- get_tabla_porcentajes(resumen$estcivil_tabla[[1]], dic_estcivil)
+convivencia_tab <- get_tabla_porcentajes(resumen$convivencia_tabla[[1]], dic_convivencia)
 
+# Convertir porcentaje a string con % y categoria como columna vertical
+nivel_tab$Porcentaje <- paste0(nivel_tab$Porcentaje, "%")
+estcivil_tab$Porcentaje <- paste0(estcivil_tab$Porcentaje, "%")
+convivencia_tab$Porcentaje <- paste0(convivencia_tab$Porcentaje, "%")
+
+# 6. Crear dataframe vertical jerárquico
+resumen_vertical <- bind_rows(
+  data.frame(Variable="N", Valor=as.character(resumen$n_total), stringsAsFactors=FALSE),
+  data.frame(Variable="Sexo (moda)", Valor=sexo_str, stringsAsFactors=FALSE),
+  data.frame(Variable="Orientación sexual (moda)", Valor=orientacion_str, stringsAsFactors=FALSE),
+  data.frame(Variable="Nivel educativo (mediana + %)", Valor=nivel_edu_str, stringsAsFactors=FALSE),
+  nivel_tab %>% rename(Variable=Categoria, Valor=Porcentaje),
+  data.frame(Variable="Estado civil (moda)", Valor=estcivil_str, stringsAsFactors=FALSE),
+  estcivil_tab %>% rename(Variable=Categoria, Valor=Porcentaje),
+  data.frame(Variable="Edad (M ± SD)", Valor=edad_str, stringsAsFactors=FALSE),
+  data.frame(Variable="Convivencia (moda)", Valor=convivencia_str, stringsAsFactors=FALSE),
+  convivencia_tab %>% rename(Variable=Categoria, Valor=Porcentaje)
+)
+
+# 7. Crear flextable APA vertical
+tabla_vertical_apa <- flextable(resumen_vertical) %>%
+  theme_booktabs() %>%
+  bold(part = "header") %>%
+  align(align = "left", j = "Variable", part = "body") %>%
+  align(align = "center", j = "Valor", part = "body") %>%
+  align(align = "center", part = "header") %>%
+  fontsize(size = 11, part = "all") %>%
+  padding(i = NULL, j = NULL, padding.top = 2, padding.bottom = 2, part = "all") %>%
+  set_table_properties(layout = "autofit", width = 0.8)
+
+# 8. Mostrar tabla
+tabla_vertical_apa
